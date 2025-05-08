@@ -1,0 +1,91 @@
+#include <WiFi.h>
+#include <Adafruit_GFX.h>
+#include <Adafruit_ST7735.h>
+#include <SPI.h>
+#include <time.h>
+
+// Definición de pines para la pantalla TFT
+#define TFT_CS   5
+#define TFT_RST  4
+#define TFT_DC   2
+
+// Crear objeto para controlar la pantalla
+Adafruit_ST7735 pantalla = Adafruit_ST7735(TFT_CS, TFT_DC, TFT_RST);
+
+// Credenciales de WiFi
+const char* redSSID = "HALLO_MARIA";
+const char* claveWiFi = "0104680152";
+
+// Datos para sincronización horaria
+const char* servidorNTP = "pool.ntp.org";
+const long zonaHoraria = -5 * 3600; // UTC-5 (Ecuador)
+const int ajusteHorarioVerano = 0;
+
+// Nombres de los días y meses en español
+const char* dias[] = {"Dom", "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb"};
+const char* meses[] = {"Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"};
+
+void setup() {
+  Serial.begin(115200);
+
+  // Inicializar pantalla
+  pantalla.initR(INITR_BLACKTAB);
+  pantalla.setRotation(1);
+  pantalla.fillScreen(ST77XX_BLACK);
+  pantalla.setTextColor(ST77XX_WHITE);
+  pantalla.setTextSize(1);
+  pantalla.setCursor(10, 10);
+  pantalla.print("Conectando WiFi");
+
+  // Intentar conectar a la red WiFi
+  WiFi.begin(redSSID, claveWiFi);
+  while (WiFi.status() != WL_CONNECTED) {
+    delay(500);
+    pantalla.print(".");
+  }
+
+  // Configurar hora con NTP
+  configTime(zonaHoraria, ajusteHorarioVerano, servidorNTP);
+}
+
+void loop() {
+  struct tm tiempoActual;
+
+  // Si no se puede obtener la hora, salir del ciclo
+  if (!getLocalTime(&tiempoActual)) return;
+
+  // Limpiar pantalla y dibujar borde
+  pantalla.fillScreen(ST77XX_BLACK);
+  pantalla.drawRect(0, 0, 160, 128, ST77XX_BLUE);
+
+  // Mostrar hora en formato HH:MM
+  pantalla.setTextColor(ST77XX_CYAN);
+  pantalla.setTextSize(4);
+  pantalla.setCursor(10, 20);
+  pantalla.printf("%02d:%02d", tiempoActual.tm_hour, tiempoActual.tm_min);
+
+  // Mostrar fecha con día y mes en español
+  pantalla.setTextColor(ST77XX_GREEN);
+  pantalla.setTextSize(1);
+  pantalla.setCursor(10, 70);
+  pantalla.printf("%s %d %s %d",
+    dias[tiempoActual.tm_wday],
+    tiempoActual.tm_mday,
+    meses[tiempoActual.tm_mon],
+    1900 + tiempoActual.tm_year);
+
+  // Mostrar estado de señal WiFi
+  mostrarSenalWiFi();
+
+  delay(500);
+}
+
+void mostrarSenalWiFi() {
+  int rssi = WiFi.RSSI();
+  int barras = (rssi > -55) ? 4 : (rssi > -65) ? 3 : (rssi > -75) ? 2 : (rssi > -85) ? 1 : 0;
+  int origenX = 130, origenY = 5;
+
+  for (int i = 0; i < barras; i++) {
+    pantalla.fillRect(origenX + i * 4, origenY + (4 - i) * 3, 3, (i + 1) * 3, ST77XX_YELLOW);
+  }
+}
