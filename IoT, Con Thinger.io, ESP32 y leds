@@ -1,0 +1,62 @@
+#include "BluetoothSerial.h"
+
+// Objeto para gestionar la conexión por Bluetooth
+BluetoothSerial bt;
+
+// Pines donde están conectados los LEDs
+const int leds[] = {13, 12, 14, 27};
+const int totalLeds = sizeof(leds) / sizeof(leds[0]);
+
+// Configura los pines de los LEDs como salidas y los apaga
+void configurarLeds() {
+  for (int i = 0; i < totalLeds; ++i) {
+    pinMode(leds[i], OUTPUT);
+    digitalWrite(leds[i], LOW);
+  }
+}
+
+// Cambia el estado del LED indicado
+void cambiarEstadoLed(int index) {
+  bool estadoActual = digitalRead(leds[index]);
+  digitalWrite(leds[index], !estadoActual);
+  bt.printf("LED %d %s\n", index + 1, !estadoActual ? "encendido" : "apagado");
+}
+
+// Enciende todos los LEDs
+void encenderTodosLeds() {
+  for (int i = 0; i < totalLeds; ++i) {
+    digitalWrite(leds[i], HIGH);
+  }
+  bt.println("Todos los LEDs se han encendido.");
+}
+
+// Apaga todos los LEDs
+void apagarTodos() {
+  for (int i = 0; i < totalLeds; ++i) {
+    digitalWrite(leds[i], LOW);
+  }
+  bt.println("Todos los LEDs se han apagado.");
+}
+
+void setup() {
+  Serial.begin(9600);
+  bt.begin("Luces_BT_ESP32");  // Nombre del dispositivo Bluetooth
+  configurarLeds();
+}
+
+void loop() {
+  if (bt.available()) {
+    char entrada = bt.read();
+
+    if (entrada >= '1' && entrada <= '4') {
+      int ledSeleccionado = entrada - '1';
+      cambiarEstadoLed(ledSeleccionado);
+    } else if (entrada == '5') {
+      encenderTodosLeds();
+    } else if (entrada == '6') {
+      apagarTodos();
+    } else {
+      bt.println("Comando inválido. Use un número entre 1 y 6.");
+    }
+  }
+}
